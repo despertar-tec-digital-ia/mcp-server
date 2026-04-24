@@ -1,5 +1,6 @@
 import logging
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.server import TransportSecuritySettings
 
 from tools.slots import get_available_slots as _get_slots
 from tools.booking import book_appointment as _book_appointment
@@ -8,7 +9,11 @@ from utils.lock import SlotAlreadyBookedError
 
 log = logging.getLogger(__name__)
 
-mcp = FastMCP("GHL Calendar", stateless_http=True)
+mcp = FastMCP(
+    "GHL Calendar",
+    stateless_http=True,
+    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+)
 
 
 @mcp.tool(name="get_available_slots", description=(
