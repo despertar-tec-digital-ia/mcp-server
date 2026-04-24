@@ -1,0 +1,15 @@
+ghl-mcp/
+├── main.py              # FastAPI app principal
+├── config.py            # Variables de entorno
+├── auth.py              # Autenticación GHL
+├── tools/
+│   ├── __init__.py
+│   ├── slots.py         # get_available_slots
+│   └── booking.py       # book_appointment
+├── utils/
+│   ├── __init__.py
+│   ├── datetime_parser.py  # "mañana en la tarde" → datetime
+│   └── lock.py          # Anti race conditions
+├── .env                 # Credenciales (nunca subir a git)
+├── requirements.txt
+└── Dockerfile
