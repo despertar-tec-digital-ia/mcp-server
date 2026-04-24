@@ -1,0 +1,13 @@
+services:
+  ghl-mcp:
+    build: .
+    container_name: ghl-mcp-calendario
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      LOG_FILE: /app/logs/app.log
+    volumes:
+      - ./logs:/app/logs
