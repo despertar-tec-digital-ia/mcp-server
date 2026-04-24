@@ -51,21 +51,26 @@ async def book_appointment(
 
         appointment_id = data.get("id", "")
 
-        # Formatear mensaje de confirmación
         from datetime import datetime
         import pytz
         from config import TIMEZONE
+        DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+        MONTHS_ES = [
+            "", "enero", "febrero", "marzo", "abril", "mayo", "junio",
+            "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+        ]
         TZ = pytz.timezone(TIMEZONE)
         dt = datetime.fromisoformat(start_iso).astimezone(TZ)
-        dias = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"]
-        dia = dias[dt.weekday()]
-        label = f"{dia} {dt.day} de {dt.strftime('%B')} a las {dt.strftime('%I:%M %p').lower()}"
+        dia = DIAS[dt.weekday()]
+        mes = MONTHS_ES[dt.month]
+        hora = dt.strftime("%I:%M %p").lstrip("0").lower()
+        label = f"{dia} {dt.day} de {mes} a las {hora}"
 
         return {
             "success": True,
             "appointment_id": appointment_id,
             "label": label,
-            "message": f"¡Listo! Tu auditoría quedó confirmada para el {label}. En breve recibes la confirmación. 🎯"
+            "message": f"Listo, tu auditoria quedo confirmada para el {label}. En breve recibes la confirmacion.",
         }
 
     except httpx.HTTPStatusError as e:

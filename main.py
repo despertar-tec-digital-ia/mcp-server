@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from fastapi import FastAPI, HTTPException, Header, Depends
 from pydantic import BaseModel
@@ -12,12 +13,14 @@ from utils.datetime_parser import parse_natural_datetime
 from utils.lock import SlotAlreadyBookedError
 
 # ─── Logging ────────────────────────────────────────────────────────────────
+LOG_FILE = os.getenv("LOG_FILE", "app.log")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler("app.log"),
+        logging.FileHandler(LOG_FILE),
     ]
 )
 log = logging.getLogger(__name__)
@@ -46,6 +49,7 @@ class SlotsResponse(BaseModel):
     slots: list[dict]
     parsed_description: str
     count: int
+    confirmation_prompt: Optional[str] = None
     
 class BookRequest(BaseModel):
     contact_id: str            # ID del contacto en GHL
@@ -86,10 +90,21 @@ async def tool_get_slots(
         parsed = parse_natural_datetime(body.natural_text)
         log.info(f"Fecha parseada: {parsed['parsed_description']}")
 
+        # Weekend or other no-availability cases: skip GHL call entirely
+        if parsed.get("no_slots_message"):
+            return SlotsResponse(
+                slots=[],
+                parsed_description=parsed["parsed_description"],
+                count=0,
+                confirmation_prompt=parsed["no_slots_message"],
+            )
+
         slots = await get_available_slots(
             start_dt=parsed["start"],
             end_dt=parsed["end"],
-            max_slots=body.max_slots
+            hour_start=parsed["hour_start"],
+            hour_end=parsed["hour_end"],
+            max_slots=body.max_slots,
         )
 
         log.info(f"Slots encontrados: {len(slots)}")
@@ -98,13 +113,21 @@ async def tool_get_slots(
             return SlotsResponse(
                 slots=[],
                 parsed_description=parsed["parsed_description"],
-                count=0
+                count=0,
+                confirmation_prompt=(
+                    "No encontre disponibilidad para esa fecha. "
+                    "¿Tienes otra preferencia de dia u horario?"
+                ),
             )
 
         return SlotsResponse(
             slots=slots,
             parsed_description=parsed["parsed_description"],
-            count=len(slots)
+            count=len(slots),
+            confirmation_prompt=(
+                "¿Te funciona alguno de estos horarios? "
+                "Dime cual y te confirmo la cita."
+            ),
         )
 
     except Exception as e:
