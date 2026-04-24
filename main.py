@@ -1,9 +1,11 @@
+import contextlib
 import logging
 import os
 import sys
 from fastapi import FastAPI, HTTPException, Header, Depends
 from pydantic import BaseModel
 from typing import Optional
+from starlette.applications import Starlette
 import httpx
 
 from config import API_SECRET_KEY
@@ -25,11 +27,31 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+# ─── MCP Setup (before app, so session_manager exists at lifespan time) ─────
+# Routes exposed:
+#   POST /mcp   — Streamable HTTP (primary, configure this URL in GHL)
+#   GET  /sse   — SSE stream (fallback)
+#   POST /messages/ — SSE message endpoint
+from mcp_server import mcp as _mcp
+
+_http_app = _mcp.streamable_http_app()  # also creates _mcp.session_manager
+_sse_app = _mcp.sse_app()
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with _mcp.session_manager.run():
+        log.info("MCP session manager started")
+        yield
+    log.info("MCP session manager stopped")
+
+
 # ─── App ─────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="GHL MCP - Calendario",
     description="Tools MCP para agendar citas desde AI Agent Studio",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # ─── Auth ────────────────────────────────────────────────────────────────────
@@ -50,7 +72,7 @@ class SlotsResponse(BaseModel):
     parsed_description: str
     count: int
     confirmation_prompt: Optional[str] = None
-    
+
 class BookRequest(BaseModel):
     contact_id: str            # ID del contacto en GHL
     start_iso: str             #10:00:00-06:00"
@@ -77,10 +99,10 @@ async def tool_get_slots(
 ):
     """
     TOOL: get_available_slots
-    
+
     Recibe texto natural como "mañana en la tarde" y devuelve
     2-3 horarios disponibles reales del calendario de GHL.
-    
+
     El AI Agent llama este endpoint cuando el usuario expresa
     interés en agendar.
     """
@@ -142,10 +164,10 @@ async def tool_book_appointment(
 ):
     """
     TOOL: book_appointment
-    
+
     Crea la cita en GHL una vez que el usuario eligió un horario.
     Usa lock para evitar doble reserva.
-    
+
     El AI Agent llama este endpoint cuando el usuario confirma
     un horario específico.
     """
@@ -183,3 +205,8 @@ async def tool_book_appointment(
     except Exception as e:
         log.error(f"Error en book_appointment: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─── MCP Mount ───────────────────────────────────────────────────────────────
+# FastAPI routes above take precedence; this sub-app catches /mcp, /sse, /messages/
+app.mount("/", Starlette(routes=list(_http_app.routes) + list(_sse_app.routes)))
