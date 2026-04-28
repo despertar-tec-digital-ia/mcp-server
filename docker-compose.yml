@@ -11,3 +11,4 @@ services:
       LOG_FILE: /app/logs/app.log
     volumes:
       - ./logs:/app/logs
+      - /tmp/ghl_locks:/tmp/ghl_locks

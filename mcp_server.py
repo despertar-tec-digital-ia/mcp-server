@@ -6,7 +6,9 @@ from tools.slots import get_available_slots as _get_slots
 from tools.booking import book_appointment as _book_appointment
 from utils.datetime_parser import parse_natural_datetime
 from utils.lock import SlotAlreadyBookedError
-
+import os
+os.makedirs("/tmp/ghl_locks", exist_ok=True)
+os.chmod("/tmp/ghl_locks", 0o777)
 log = logging.getLogger(__name__)
 
 mcp = FastMCP(
