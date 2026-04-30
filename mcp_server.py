@@ -2,8 +2,8 @@ import logging
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.server import TransportSecuritySettings
 
-from tools.slots import get_available_slots as _get_slots
-from tools.booking import book_appointment as _book_appointment
+from projects.sofia.slots import get_available_slots as _get_slots
+from projects.sofia.booking import book_appointment as _book_appointment
 from utils.datetime_parser import parse_natural_datetime
 from utils.lock import SlotAlreadyBookedError
 import os

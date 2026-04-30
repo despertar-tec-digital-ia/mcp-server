@@ -9,8 +9,10 @@ from starlette.applications import Starlette
 import httpx
 
 from config import API_SECRET_KEY
-from tools.slots import get_available_slots
-from tools.booking import book_appointment
+from projects.sofia.slots import get_available_slots
+from projects.sofia.booking import book_appointment
+from projects.sonoras.offers import router as sonoras_router
+from projects.sonoras.db import init_db
 from utils.datetime_parser import parse_natural_datetime
 from utils.lock import SlotAlreadyBookedError
 
@@ -40,6 +42,7 @@ _sse_app = _mcp.sse_app()
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_db()
     async with _mcp.session_manager.run():
         log.info("MCP session manager started")
         yield
@@ -206,6 +209,9 @@ async def tool_book_appointment(
         log.error(f"Error en book_appointment: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ─── Routers ─────────────────────────────────────────────────────────────────
+app.include_router(sonoras_router)
 
 # ─── MCP Mount ───────────────────────────────────────────────────────────────
 # FastAPI routes above take precedence; this sub-app catches /mcp, /sse, /messages/
