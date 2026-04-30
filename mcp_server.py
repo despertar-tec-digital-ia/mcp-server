@@ -4,6 +4,9 @@ from mcp.server.fastmcp.server import TransportSecuritySettings
 
 from projects.sofia.slots import get_available_slots as _get_slots
 from projects.sofia.booking import book_appointment as _book_appointment
+from projects.sonoras.offers import _create as _sonoras_create
+from projects.sonoras.offers import _list as _sonoras_list
+from projects.sonoras.offers import _deactivate as _sonoras_deactivate
 from utils.datetime_parser import parse_natural_datetime
 from utils.lock import SlotAlreadyBookedError
 import os
@@ -96,3 +99,72 @@ async def mcp_book_appointment(
             "success": False,
             "message": f"Error al crear la cita: {str(e)}",
         }
+
+
+# ─── Sonora's Carbón y Sal ────────────────────────────────────────────────────
+
+@mcp.tool(name="create_sonoras_offer", description=(
+    "Crea una oferta de Sonora's Carbon y Sal a partir de un post de Facebook. "
+    "Llamar SOLO cuando el post haya sido identificado como una oferta o promocion. "
+    "Del texto del post extraer: "
+    "title (nombre corto de la oferta, ej: '2x1 en alitas'), "
+    "description (descripcion completa tal como aparece en el post), "
+    "expires_at (ISO 8601 si el post menciona duracion o fecha limite; null si no), "
+    "schedule_notes (horarios o dias en que aplica, ej: 'Lunes a jueves 6pm-10pm', "
+    "'Solo fines de semana', 'Consumo minimo $300'; null si no se menciona), "
+    "fb_post_id (ID del post para evitar duplicados), "
+    "image_url (URL de imagen si esta disponible, sino null). "
+    "Antes de crear, verificar con list_sonoras_offers si ya existe una oferta similar activa."
+))
+def mcp_create_sonoras_offer(
+    title: str,
+    fb_post_id: str,
+    description: str = None,
+    image_url: str = None,
+    expires_at: str = None,
+    schedule_notes: str = None,
+) -> dict:
+    log.info(f"MCP create_sonoras_offer | title: '{title}' | fb_post_id: {fb_post_id}")
+    try:
+        return _sonoras_create(
+            title=title,
+            fb_post_id=fb_post_id,
+            description=description,
+            image_url=image_url,
+            expires_at=expires_at,
+            schedule_notes=schedule_notes,
+        )
+    except Exception as e:
+        log.error(f"Error en MCP create_sonoras_offer: {e}", exc_info=True)
+        return {"duplicate": False, "error": str(e)}
+
+
+@mcp.tool(name="list_sonoras_offers", description=(
+    "Devuelve las ofertas activas y vigentes de Sonora's Carbon y Sal. "
+    "Usar antes de crear una oferta nueva para verificar si ya existe una similar activa. "
+    "Tambien util para confirmar que una oferta fue creada correctamente."
+))
+def mcp_list_sonoras_offers() -> dict:
+    log.info("MCP list_sonoras_offers")
+    try:
+        offers = _sonoras_list()
+        return {"offers": offers, "count": len(offers)}
+    except Exception as e:
+        log.error(f"Error en MCP list_sonoras_offers: {e}", exc_info=True)
+        return {"offers": [], "count": 0, "error": str(e)}
+
+
+@mcp.tool(name="deactivate_sonoras_offer", description=(
+    "Desactiva una oferta de Sonora's por su ID. "
+    "Llamar cuando la oferta haya expirado o el restaurante indique que ya no aplica. "
+    "El ID lo devuelve create_sonoras_offer al momento de crear la oferta."
+))
+def mcp_deactivate_sonoras_offer(offer_id: int) -> dict:
+    log.info(f"MCP deactivate_sonoras_offer | id: {offer_id}")
+    try:
+        if not _sonoras_deactivate(offer_id):
+            return {"deactivated": False, "error": f"Oferta {offer_id} no encontrada"}
+        return {"id": offer_id, "deactivated": True}
+    except Exception as e:
+        log.error(f"Error en MCP deactivate_sonoras_offer: {e}", exc_info=True)
+        return {"deactivated": False, "error": str(e)}

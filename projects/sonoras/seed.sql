@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS offers (
     fb_post_id      TEXT    UNIQUE,
     starts_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
     expires_at      DATETIME,
+    schedule_notes  TEXT,
     is_active       BOOLEAN DEFAULT 1,
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP
