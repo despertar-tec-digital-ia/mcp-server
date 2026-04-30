@@ -1,3 +1,11 @@
 millave_server.pem
 *.pem
 app.log
+.env
+.env.*
+.claude/
+data/*.db
+.venv/
+__pycache__/
+*.pyc
+logs/

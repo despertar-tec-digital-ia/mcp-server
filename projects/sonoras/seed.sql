@@ -1,6 +1,6 @@
 -- Schema: Sonora's Carbón y Sal — Módulo de Ofertas
 -- Se ejecuta automáticamente desde db.py al inicializar.
--- Usa IF NOT EXISTS para que sea idempotente.
+-- Usa IF NOT EXISTS
 
 CREATE TABLE IF NOT EXISTS offers (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
