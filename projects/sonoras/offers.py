@@ -2,16 +2,41 @@
 Sonora's — Lógica de ofertas.
 
 Funciones internas usadas por los MCP tools en mcp_server.py.
-El router expone GET /sonoras/offers/list como endpoint público
-para ser consumido por el JS de la funnel page de GHL.
+Endpoints REST usados por GHL Workflow (autenticados con x-api-key):
+  POST  /sonoras/offers/create
+  PATCH /sonoras/offers/deactivate/{id}
+Endpoint público para el JS de la funnel page:
+  GET   /sonoras/offers/list
 """
 
+import os
 from typing import Optional
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Header, HTTPException
+from pydantic import BaseModel
 from .db import get_conn
 
 router = APIRouter(prefix="/sonoras/offers", tags=["sonoras"])
 
+
+# ─── Auth ─────────────────────────────────────────────────────────────────────
+
+def _require_api_key(x_api_key: str = Header(...)):
+    if x_api_key != os.getenv("MCP_API_KEY", ""):
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+
+# ─── Schemas ──────────────────────────────────────────────────────────────────
+
+class OfferCreate(BaseModel):
+    title: str
+    fb_post_id: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    expires_at: Optional[str] = None
+    schedule_notes: Optional[str] = None
+
+
+# ─── Internal logic (also used by MCP tools) ──────────────────────────────────
 
 def _create(
     title: str,
@@ -53,12 +78,6 @@ def _list() -> list:
         return [dict(r) for r in rows]
 
 
-@router.get("/list")
-def list_offers():
-    """Endpoint público — consumido por el JS de la funnel page."""
-    return _list()
-
-
 def _deactivate(offer_id: int) -> bool:
     with get_conn() as conn:
         result = conn.execute(
@@ -66,3 +85,30 @@ def _deactivate(offer_id: int) -> bool:
             (offer_id,),
         )
         return result.rowcount > 0
+
+
+# ─── Endpoints ────────────────────────────────────────────────────────────────
+
+@router.post("/create", dependencies=[Depends(_require_api_key)])
+def create_offer(body: OfferCreate):
+    return _create(
+        title=body.title,
+        fb_post_id=body.fb_post_id,
+        description=body.description,
+        image_url=body.image_url,
+        expires_at=body.expires_at,
+        schedule_notes=body.schedule_notes,
+    )
+
+
+@router.get("/list")
+def list_offers():
+    """Endpoint público — consumido por el JS de la funnel page."""
+    return _list()
+
+
+@router.patch("/deactivate/{offer_id}", dependencies=[Depends(_require_api_key)])
+def deactivate_offer(offer_id: int):
+    if not _deactivate(offer_id):
+        raise HTTPException(status_code=404, detail=f"Offer {offer_id} not found")
+    return {"id": offer_id, "deactivated": True}
