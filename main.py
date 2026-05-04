@@ -56,7 +56,7 @@ async def health():
     return {"status": "ok", "service": "GHL MCP Calendar"}
 
 
-# ─── Routers ─────────────────────────────────────────────────────────────────
+# Routers 
 app.include_router(sonoras_router)
 
 # ─── MCP Mount ───────────────────────────────────────────────────────────────
