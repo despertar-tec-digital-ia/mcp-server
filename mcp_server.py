@@ -101,7 +101,7 @@ async def mcp_book_appointment(
         }
 
 
-# ─── Sonora's Carbón y Sal ────────────────────────────────────────────────────
+# Sonora's Carbón y Sal 
 
 @mcp.tool(name="create_sonoras_offer", description=(
     "Crea una oferta de Sonora's Carbon y Sal a partir de un post de Facebook. "
