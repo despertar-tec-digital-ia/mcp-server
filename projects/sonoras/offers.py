@@ -1,12 +1,16 @@
 """
 Sonora's — Lógica de ofertas.
 
-Funciones usadas por los MCP tools en mcp_server.py.
-El agente es el único que interactúa con las ofertas.
+Funciones internas usadas por los MCP tools en mcp_server.py.
+El router expone GET /sonoras/offers/list como endpoint público
+para ser consumido por el JS de la funnel page de GHL.
 """
 
 from typing import Optional
+from fastapi import APIRouter
 from .db import get_conn
+
+router = APIRouter(prefix="/sonoras/offers", tags=["sonoras"])
 
 
 def _create(
@@ -47,6 +51,12 @@ def _list() -> list:
             """
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+@router.get("/list")
+def list_offers():
+    """Endpoint público — consumido por el JS de la funnel page."""
+    return _list()
 
 
 def _deactivate(offer_id: int) -> bool:

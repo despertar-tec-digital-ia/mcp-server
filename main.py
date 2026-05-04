@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from starlette.applications import Starlette
 
 from projects.sonoras.db import init_db
+from projects.sonoras.offers import router as sonoras_router
 
 # ─── Logging ────────────────────────────────────────────────────────────────
 LOG_FILE = os.getenv("LOG_FILE", "app.log")
@@ -54,6 +55,9 @@ app = FastAPI(
 async def health():
     return {"status": "ok", "service": "GHL MCP Calendar"}
 
+
+# ─── Routers ─────────────────────────────────────────────────────────────────
+app.include_router(sonoras_router)
 
 # ─── MCP Mount ───────────────────────────────────────────────────────────────
 # FastAPI routes above take precedence; this sub-app catches /mcp, /sse, /messages/
