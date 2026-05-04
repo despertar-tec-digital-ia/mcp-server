@@ -11,7 +11,10 @@ from utils.datetime_parser import parse_natural_datetime
 from utils.lock import SlotAlreadyBookedError
 import os
 os.makedirs("/tmp/ghl_locks", exist_ok=True)
-os.chmod("/tmp/ghl_locks", 0o777)
+try:
+    os.chmod("/tmp/ghl_locks", 0o777)
+except PermissionError:
+    pass
 log = logging.getLogger(__name__)
 
 mcp = FastMCP(
