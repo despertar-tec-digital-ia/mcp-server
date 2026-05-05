@@ -2,11 +2,16 @@ import contextlib
 import logging
 import os
 import sys
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException
+from pydantic import BaseModel
 from starlette.applications import Starlette
 
 from projects.sonoras.db import init_db
 from projects.sonoras.offers import router as sonoras_router
+from projects.sofia.slots import get_available_slots as _get_slots
+from projects.sofia.booking import book_appointment as _book_appointment
+from utils.datetime_parser import parse_natural_datetime
+from utils.lock import SlotAlreadyBookedError
 
 # ─── Logging ────────────────────────────────────────────────────────────────
 LOG_FILE = os.getenv("LOG_FILE", "app.log")
@@ -49,6 +54,27 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ─── Auth ────────────────────────────────────────────────────────────────────
+
+def _require_api_key(x_api_key: str = Header(...)):
+    if x_api_key != os.getenv("MCP_API_KEY", ""):
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+
+# ─── Schemas ─────────────────────────────────────────────────────────────────
+
+class SlotsRequest(BaseModel):
+    natural_text: str
+    max_slots: int = 3
+
+
+class BookRequest(BaseModel):
+    contact_id: str
+    start_iso: str
+    end_iso: str
+    title: str = "Auditoria Gratuita - Restaurante"
+
+
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -56,7 +82,68 @@ async def health():
     return {"status": "ok", "service": "GHL MCP Calendar"}
 
 
-# Routers 
+@app.post("/tools/get_available_slots", dependencies=[Depends(_require_api_key)])
+async def rest_get_available_slots(body: SlotsRequest):
+    parsed = parse_natural_datetime(body.natural_text)
+
+    if parsed.get("no_slots_message"):
+        return {
+            "slots": [],
+            "parsed_description": parsed["parsed_description"],
+            "count": 0,
+            "confirmation_prompt": parsed["no_slots_message"],
+        }
+
+    slots = await _get_slots(
+        start_dt=parsed["start"],
+        end_dt=parsed["end"],
+        hour_start=parsed["hour_start"],
+        hour_end=parsed["hour_end"],
+        max_slots=body.max_slots,
+    )
+
+    if not slots:
+        return {
+            "slots": [],
+            "parsed_description": parsed["parsed_description"],
+            "count": 0,
+            "confirmation_prompt": (
+                "No encontre disponibilidad para esa fecha. "
+                "¿Tienes otra preferencia de dia u horario?"
+            ),
+        }
+
+    return {
+        "slots": slots,
+        "parsed_description": parsed["parsed_description"],
+        "count": len(slots),
+        "confirmation_prompt": (
+            "¿Te funciona alguno de estos horarios? "
+            "Dime cual y te confirmo la cita."
+        ),
+    }
+
+
+@app.post("/tools/book_appointment", dependencies=[Depends(_require_api_key)])
+async def rest_book_appointment(body: BookRequest):
+    try:
+        return await _book_appointment(
+            contact_id=body.contact_id,
+            start_iso=body.start_iso,
+            end_iso=body.end_iso,
+            title=body.title,
+        )
+    except SlotAlreadyBookedError:
+        return {
+            "success": False,
+            "message": "Ese horario acaba de ser reservado. ¿Quieres ver otros disponibles?",
+        }
+    except Exception as e:
+        log.error(f"Error en REST book_appointment: {e}", exc_info=True)
+        return {"success": False, "message": f"Error al crear la cita: {str(e)}"}
+
+
+# Routers
 app.include_router(sonoras_router)
 
 # ─── MCP Mount ───────────────────────────────────────────────────────────────
