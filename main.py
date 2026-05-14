@@ -154,14 +154,10 @@ async def facebook_webhook(request: Request):
         raise HTTPException(status_code=500, detail="GHL webhook URL not configured")
 
     ghl_payload = {
-        "contact": {
-            "email": email,
-            "phone": phone,
-            "firstName": first_name,
-            "customFields": {
-                "facebook_post_text": post_text,
-            },
-        }
+        "email": email,
+        "phone": phone,
+        "firstName": first_name,
+        "facebook_post_text": post_text,
     }
 
     async with httpx.AsyncClient(timeout=10) as client:
