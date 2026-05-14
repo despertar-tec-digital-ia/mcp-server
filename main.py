@@ -95,6 +95,17 @@ async def facebook_webhook_verify(
     return Response(content=hub_challenge, media_type="text/plain")
 
 
+@app.get("/webhooks/facebook")
+async def facebook_webhook_verify_alt(
+    hub_mode: str = Query(alias="hub.mode"),
+    hub_verify_token: str = Query(alias="hub.verify_token"),
+    hub_challenge: str = Query(alias="hub.challenge"),
+):
+    if hub_verify_token != "sonoras2026":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return Response(content=hub_challenge, media_type="text/plain")
+
+
 @app.post("/webhooks/facebook")
 async def facebook_webhook(request: Request):
     payload = await request.json()
