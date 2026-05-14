@@ -2,9 +2,10 @@ import contextlib
 import logging
 import os
 import sys
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
+import httpx
 from starlette.applications import Starlette
 
 from projects.sonoras.db import init_db
@@ -92,6 +93,72 @@ async def facebook_webhook_verify(
     if hub_verify_token != "sonoras2026":
         raise HTTPException(status_code=403, detail="Forbidden")
     return Response(content=hub_challenge, media_type="text/plain")
+
+
+@app.post("/webhooks/facebook")
+async def facebook_webhook(request: Request):
+    payload = await request.json()
+    log.info(f"Facebook webhook received: {payload}")
+
+    # Meta sends changes as a list of entries, each with changes
+    # Flatten all change values into a list to inspect
+    changes = []
+    for entry in payload.get("entry", []):
+        for change in entry.get("changes", []):
+            changes.append(change.get("value", {}))
+
+    # Extract contact fields from the first change that has them
+    first_name = "Facebook"
+    email = None
+    phone = None
+    post_text = ""
+
+    for value in changes:
+        # Lead-gen forms
+        if "field_data" in value:
+            for field in value["field_data"]:
+                name = field.get("name", "").lower()
+                val = (field.get("values") or [""])[0]
+                if name in ("email", "correo"):
+                    email = val
+                elif name in ("phone_number", "phone", "telefono", "celular"):
+                    phone = val
+                elif name in ("first_name", "nombre"):
+                    first_name = val
+        # Page feed posts
+        if "message" in value:
+            post_text = value["message"]
+        if "from" in value:
+            first_name = value["from"].get("name", first_name)
+
+    # Fallbacks so GHL always gets a valid contact identifier
+    if not email:
+        email = f"fb-{payload.get('entry', [{}])[0].get('id', 'unknown')}@facebook.noreply"
+    if not phone:
+        phone = ""
+
+    ghl_url = os.getenv("GHL_INBOUND_WEBHOOK_URL", "")
+    if not ghl_url:
+        log.error("GHL_INBOUND_WEBHOOK_URL not set")
+        raise HTTPException(status_code=500, detail="GHL webhook URL not configured")
+
+    ghl_payload = {
+        "contact": {
+            "email": email,
+            "phone": phone,
+            "firstName": first_name,
+            "customFields": {
+                "facebook_post_text": post_text,
+            },
+        }
+    }
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.post(ghl_url, json=ghl_payload)
+        log.info(f"GHL response: {resp.status_code} {resp.text}")
+        resp.raise_for_status()
+
+    return {"success": True}
 
 
 @app.post("/tools/get_available_slots", dependencies=[Depends(_require_api_key)])
