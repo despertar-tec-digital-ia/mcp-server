@@ -148,7 +148,7 @@ async def facebook_webhook(request: Request):
     if not phone:
         phone = ""
 
-    ghl_url = os.getenv("GHL_INBOUND_WEBHOOK_URL", "")
+    ghl_url = "".join(os.getenv("GHL_INBOUND_WEBHOOK_URL", "").split())
     if not ghl_url:
         log.error("GHL_INBOUND_WEBHOOK_URL not set")
         raise HTTPException(status_code=500, detail="GHL webhook URL not configured")
