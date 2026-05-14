@@ -2,7 +2,8 @@ import contextlib
 import logging
 import os
 import sys
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 from starlette.applications import Starlette
 
@@ -80,6 +81,17 @@ class BookRequest(BaseModel):
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "GHL MCP Calendar"}
+
+
+@app.get("/webhooks/facebook/verify")
+async def facebook_webhook_verify(
+    hub_mode: str = Query(alias="hub.mode"),
+    hub_verify_token: str = Query(alias="hub.verify_token"),
+    hub_challenge: str = Query(alias="hub.challenge"),
+):
+    if hub_verify_token != "sonoras2026":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return Response(content=hub_challenge, media_type="text/plain")
 
 
 @app.post("/tools/get_available_slots", dependencies=[Depends(_require_api_key)])
