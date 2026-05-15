@@ -2,8 +2,8 @@ import httpx
 import logging
 from datetime import datetime, timedelta
 import pytz
-from config import GHL_BASE_URL, GHL_CALENDAR_ID, TIMEZONE, SLOT_DURATION_MIN
-from auth import get_headers
+from app.config import GHL_BASE_URL, GHL_CALENDAR_ID, TIMEZONE, SLOT_DURATION_MIN
+from app.auth import get_headers
 
 log = logging.getLogger(__name__)
 TZ = pytz.timezone(TIMEZONE)
@@ -38,7 +38,6 @@ def _pick_spread(slots_by_day: dict[str, list[datetime]], max_slots: int) -> lis
         return []
 
     picked: list[tuple[str, int]] = []
-    # Three passes: early (0%), mid (50%), late (99%) within each day
     for frac in (0.0, 0.5, 0.99):
         for day in days:
             if len(picked) >= max_slots:

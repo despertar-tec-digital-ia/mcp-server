@@ -1,7 +1,7 @@
 """
 Sonora's — Lógica de ofertas.
 
-Funciones internas usadas por los MCP tools en mcp_server.py.
+Funciones internas usadas por los MCP tools en app/mcp/server.py.
 Endpoints REST usados por GHL Workflow (autenticados con x-api-key):
   POST  /sonoras/offers/create
   PATCH /sonoras/offers/deactivate/{id}
@@ -9,31 +9,13 @@ Endpoint público para el JS de la funnel page:
   GET   /sonoras/offers/list
 """
 
-import os
 from typing import Optional
-from fastapi import APIRouter, Depends, Header, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
+from app.auth import require_api_key
+from app.schemas.requests import OfferCreate
 from .db import get_conn
 
 router = APIRouter(prefix="/sonoras/offers", tags=["sonoras"])
-
-
-# ─── Auth ─────────────────────────────────────────────────────────────────────
-
-def _require_api_key(x_api_key: str = Header(...)):
-    if x_api_key != os.getenv("MCP_API_KEY", ""):
-        raise HTTPException(status_code=401, detail="Invalid API key")
-
-
-# ─── Schemas ──────────────────────────────────────────────────────────────────
-
-class OfferCreate(BaseModel):
-    title: str
-    fb_post_id: Optional[str] = None
-    description: Optional[str] = None
-    image_url: Optional[str] = None
-    expires_at: Optional[str] = None
-    schedule_notes: Optional[str] = None
 
 
 # ─── Internal logic (also used by MCP tools) ──────────────────────────────────
@@ -90,7 +72,7 @@ def _deactivate(offer_id: int) -> bool:
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
-@router.post("/create", dependencies=[Depends(_require_api_key)])
+@router.post("/create", dependencies=[Depends(require_api_key)])
 def create_offer(body: OfferCreate):
     return _create(
         title=body.title,
@@ -108,7 +90,7 @@ def list_offers():
     return _list()
 
 
-@router.patch("/deactivate/{offer_id}", dependencies=[Depends(_require_api_key)])
+@router.patch("/deactivate/{offer_id}", dependencies=[Depends(require_api_key)])
 def deactivate_offer(offer_id: int):
     if not _deactivate(offer_id):
         raise HTTPException(status_code=404, detail=f"Offer {offer_id} not found")

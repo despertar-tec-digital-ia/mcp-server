@@ -1,21 +1,23 @@
 import logging
+import os
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.server import TransportSecuritySettings
 
-from projects.sofia.slots import get_available_slots as _get_slots
-from projects.sofia.booking import book_appointment as _book_appointment
-from projects.sonoras.offers import _create as _sonoras_create
-from projects.sonoras.offers import _list as _sonoras_list
-from projects.sonoras.offers import _deactivate as _sonoras_deactivate
-from utils.datetime_parser import parse_natural_datetime
-from utils.lock import SlotAlreadyBookedError
-from utils.fb_cache import get_image as _get_cached_fb_image
-import os
+from app.clients.sofia.slots import get_available_slots as _get_slots
+from app.clients.sofia.booking import book_appointment as _book_appointment
+from app.clients.sonoras.offers import _create as _sonoras_create
+from app.clients.sonoras.offers import _list as _sonoras_list
+from app.clients.sonoras.offers import _deactivate as _sonoras_deactivate
+from app.utils.datetime_parser import parse_natural_datetime
+from app.utils.lock import SlotAlreadyBookedError
+from app.utils.fb_cache import get_image as _get_cached_fb_image
+
 os.makedirs("/tmp/ghl_locks", exist_ok=True)
 try:
     os.chmod("/tmp/ghl_locks", 0o777)
 except PermissionError:
     pass
+
 log = logging.getLogger(__name__)
 
 mcp = FastMCP(
@@ -104,8 +106,6 @@ async def mcp_book_appointment(
             "message": f"Error al crear la cita: {str(e)}",
         }
 
-
-# Sonora's Carbón y Sal 
 
 @mcp.tool(name="create_sonoras_offer", description=(
     "Crea una oferta de Sonora's Carbon y Sal a partir de un post de Facebook. "

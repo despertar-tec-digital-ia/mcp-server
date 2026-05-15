@@ -10,8 +10,8 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-# /app/projects/sonoras/db.py  ->  /app/data/sonoras.db
-DB_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "sonoras.db"
+# /app/app/clients/sonoras/db.py  ->  /app/data/sonoras.db
+DB_PATH = Path(__file__).resolve().parent.parent.parent.parent / "data" / "sonoras.db"
 SEED_PATH = Path(__file__).resolve().parent / "seed.sql"
 
 

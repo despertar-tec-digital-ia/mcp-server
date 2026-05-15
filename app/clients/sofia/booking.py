@@ -1,7 +1,16 @@
 import httpx
-from config import GHL_BASE_URL, GHL_CALENDAR_ID, GHL_LOCATION_ID, GHL_ASSIGNED_USER
-from auth import get_headers
-from utils.lock import acquire_slot, SlotAlreadyBookedError
+from datetime import datetime
+import pytz
+from app.config import GHL_BASE_URL, GHL_CALENDAR_ID, GHL_LOCATION_ID, GHL_ASSIGNED_USER, TIMEZONE
+from app.auth import get_headers
+from app.utils.lock import acquire_slot, SlotAlreadyBookedError
+
+DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+MONTHS_ES = [
+    "", "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+]
+
 
 async def book_appointment(
     contact_id: str,
@@ -9,20 +18,6 @@ async def book_appointment(
     end_iso: str,
     title: str = "Auditoría Gratuita - Restaurante",
 ) -> dict:
-    """
-    Crea una cita en GHL para el contacto dado.
-    Usa lock para evitar doble reserva del mismo horario.
-    
-    Returns:
-    {
-      "success": True,
-      "appointment_id": "abc123",
-      "label": "Martes 20 de mayo a las 10:00 am",
-      "message": "Tu cita quedó confirmada para el Martes 20 de mayo..."
-    }
-    """
-
-    # Anti race condition: lockea este slot mientras se procesa
     try:
         lock = acquire_slot(start_iso)
     except SlotAlreadyBookedError as e:
@@ -51,14 +46,6 @@ async def book_appointment(
 
         appointment_id = data.get("id", "")
 
-        from datetime import datetime
-        import pytz
-        from config import TIMEZONE
-        DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-        MONTHS_ES = [
-            "", "enero", "febrero", "marzo", "abril", "mayo", "junio",
-            "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-        ]
         TZ = pytz.timezone(TIMEZONE)
         dt = datetime.fromisoformat(start_iso).astimezone(TZ)
         dia = DIAS[dt.weekday()]

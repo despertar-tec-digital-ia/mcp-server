@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, date
 import pytz
-from config import TIMEZONE
+from app.config import TIMEZONE
 
 TZ = pytz.timezone(TIMEZONE)
 
