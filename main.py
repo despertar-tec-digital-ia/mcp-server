@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
 import httpx
@@ -12,6 +13,7 @@ from projects.sonoras.db import init_db
 from projects.sonoras.offers import router as sonoras_router
 from projects.sofia.slots import get_available_slots as _get_slots
 from projects.sofia.booking import book_appointment as _book_appointment
+from utils.fb_cache import set_image as _cache_fb_image
 from utils.datetime_parser import parse_natural_datetime
 from utils.lock import SlotAlreadyBookedError
 
@@ -54,6 +56,16 @@ app = FastAPI(
     description="Tools MCP para agendar citas desde AI Agent Studio",
     version="1.0.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://sonorascarbonysal.com",
+        "https://www.sonorascarbonysal.com",
+    ],
+    allow_methods=["GET"],
+    allow_headers=["*"],
 )
 
 # ─── Auth ────────────────────────────────────────────────────────────────────
@@ -106,17 +118,38 @@ async def facebook_webhook_verify_alt(
     return Response(content=hub_challenge, media_type="text/plain")
 
 
+async def _fetch_fb_image(post_id: str) -> str:
+    """Intenta obtener full_picture del post via Graph API. Retorna '' si falla."""
+    token = os.getenv("FB_PAGE_ACCESS_TOKEN", "")
+    if not token or not post_id:
+        return ""
+    try:
+        url = f"https://graph.facebook.com/v25.0/{post_id}"
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(url, params={"fields": "full_picture", "access_token": token})
+            if resp.status_code == 200:
+                return resp.json().get("full_picture", "")
+    except Exception as e:
+        log.warning(f"No se pudo obtener imagen de FB: {e}")
+    return ""
+
+
 @app.post("/webhooks/facebook")
 async def facebook_webhook(request: Request):
     payload = await request.json()
     log.info(f"Facebook webhook received: {payload}")
 
-    post_text = (
+    value = (
         payload.get("entry", [{}])[0]
         .get("changes", [{}])[0]
         .get("value", {})
-        .get("message", "")
     )
+    post_text = value.get("message", "")
+    post_id = value.get("post_id", "")
+
+    image_url = await _fetch_fb_image(post_id)
+    log.info(f"FB post_id: {post_id} | image_url: {image_url or '(none)'}")
+    _cache_fb_image(image_url)
 
     ghl_url = "".join(os.getenv("GHL_INBOUND_WEBHOOK_URL", "").split())
     if not ghl_url:
@@ -125,10 +158,16 @@ async def facebook_webhook(request: Request):
 
     ghl_payload = {
         "facebook_post_text": post_text,
+        "fb_image_url": image_url,
         "email": "posts@sonoras.local",
         "phone": "+52-sonoras",
         "firstName": "Sonoras Bot",
     }
+
+    import json as _json
+    print("=== PAYLOAD ENVIADO A GHL ===")
+    print(_json.dumps(ghl_payload, indent=2, ensure_ascii=False))
+    print("==============================")
 
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.post(ghl_url, json=ghl_payload)

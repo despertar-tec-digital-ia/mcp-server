@@ -9,6 +9,7 @@ from projects.sonoras.offers import _list as _sonoras_list
 from projects.sonoras.offers import _deactivate as _sonoras_deactivate
 from utils.datetime_parser import parse_natural_datetime
 from utils.lock import SlotAlreadyBookedError
+from utils.fb_cache import get_image as _get_cached_fb_image
 import os
 os.makedirs("/tmp/ghl_locks", exist_ok=True)
 try:
@@ -111,28 +112,31 @@ async def mcp_book_appointment(
     "Llamar SOLO cuando el post haya sido identificado como una oferta o promocion. "
     "Del texto del post extraer: "
     "title (nombre corto de la oferta, ej: '2x1 en alitas'), "
-    "description (descripcion completa tal como aparece en el post), "
+    "promo_text (texto LITERAL de la promocion copiado del post, NO estas instrucciones), "
     "expires_at (ISO 8601 si el post menciona duracion o fecha limite; null si no), "
     "schedule_notes (horarios o dias en que aplica, ej: 'Lunes a jueves 6pm-10pm', "
     "'Solo fines de semana', 'Consumo minimo $300'; null si no se menciona), "
     "fb_post_id (ID del post para evitar duplicados), "
-    "image_url (URL de imagen si esta disponible, sino null). "
+    "image_url (usar el valor de fb_image_url recibido en el input; null si vacio). "
     "Antes de crear, verificar con list_sonoras_offers si ya existe una oferta similar activa."
 ))
 def mcp_create_sonoras_offer(
     title: str,
     fb_post_id: str,
-    description: str = None,
+    promo_text: str = None,
     image_url: str = None,
     expires_at: str = None,
     schedule_notes: str = None,
 ) -> dict:
-    log.info(f"MCP create_sonoras_offer | title: '{title}' | fb_post_id: {fb_post_id}")
+    fb_post_id = fb_post_id or None
+    if not image_url:
+        image_url = _get_cached_fb_image() or None
+    log.info(f"MCP create_sonoras_offer | title: '{title}' | fb_post_id: {fb_post_id} | promo_text: {repr(promo_text)} | image_url: {repr(image_url)}")
     try:
         return _sonoras_create(
             title=title,
             fb_post_id=fb_post_id,
-            description=description,
+            description=promo_text,
             image_url=image_url,
             expires_at=expires_at,
             schedule_notes=schedule_notes,

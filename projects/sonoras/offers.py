@@ -46,6 +46,7 @@ def _create(
     expires_at: Optional[str] = None,
     schedule_notes: Optional[str] = None,
 ) -> dict:
+    expires_at = expires_at or None
     with get_conn() as conn:
         if fb_post_id:
             existing = conn.execute(
