@@ -3,8 +3,6 @@ services:
     build: .
     container_name: ghl-mcp-calendario
     restart: unless-stopped
-    ports:
-      - "${PORT:-8000}:8000"
     env_file:
       - .env
     environment:
@@ -12,7 +10,19 @@ services:
     volumes:
       - logs_data:/app/logs
       - data:/app/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ghl-mcp.rule=Host(`mcp.despertartdigital.cloud`)"
+      - "traefik.http.routers.ghl-mcp.entrypoints=websecure"
+      - "traefik.http.routers.ghl-mcp.tls.certresolver=letsencrypt"
+      - "traefik.http.services.ghl-mcp.loadbalancer.server.port=8000"
+    networks:
+      - ddtia-net
 
 volumes:
   logs_data:
   data:
+
+networks:
+  ddtia-net:
+    external: true
