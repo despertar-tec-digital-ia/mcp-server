@@ -72,15 +72,12 @@ async def facebook_webhook(request: Request):
     ghl_payload = {
         "facebook_post_text": post_text,
         "fb_image_url": image_url,
-        "email": "posts@sonoras.local",
+        "email": f"post-{post_id}@sonoras.local" if post_id else "posts@sonoras.local",
         "phone": "+52-sonoras",
         "firstName": "Sonoras Bot",
     }
 
-    import json as _json
-    print("=== PAYLOAD ENVIADO A GHL ===")
-    print(_json.dumps(ghl_payload, indent=2, ensure_ascii=False))
-    print("==============================")
+    log.info(f"GHL payload: {ghl_payload}")
 
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.post(ghl_url, json=ghl_payload)
