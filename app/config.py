@@ -20,3 +20,4 @@ DAYS_AHEAD         = int(os.getenv("DAYS_AHEAD", "7"))
 GHL_BASE_URL = "https://services.leadconnectorhq.com"
 
 VAULT_PATH = os.getenv("VAULT_PATH", "/app/data/vault")
+HERMES_URL = os.getenv("HERMES_URL", "https://hermes.despertartdigital.cloud")

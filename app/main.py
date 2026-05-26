@@ -8,12 +8,14 @@ from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
 
-from app.clients.sonoras.db import init_db
+from app.clients.sonoras.db import init_db as init_sonoras_db
+from app.clients.panel.db import init_db as init_panel_db
 from app.mcp.server import mcp as _mcp
 from app.routes.health import router as health_router
 from app.routes.webhooks import router as webhooks_router
 from app.routes.tools import router as tools_router
 from app.routes.sonoras import router as sonoras_router
+from app.routes.panel import router as panel_router
 
 # ─── Logging ────────────────────────────────────────────────────────────────
 LOG_FILE = os.getenv("LOG_FILE", "app.log")
@@ -39,7 +41,8 @@ _sse_app = _mcp.sse_app()
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    init_sonoras_db()
+    init_panel_db()
     async with _mcp.session_manager.run():
         log.info("MCP session manager started")
         yield
@@ -70,6 +73,7 @@ app.include_router(health_router)
 app.include_router(webhooks_router)
 app.include_router(tools_router)
 app.include_router(sonoras_router)
+app.include_router(panel_router)
 
 # ─── MCP Mount ───────────────────────────────────────────────────────────────
 # FastAPI routes above take precedence; this sub-app catches /mcp, /sse, /messages/
