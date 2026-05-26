@@ -191,3 +191,15 @@ def test_get_health_hermes_unreachable(client):
         r = client.get("/panel/health", headers={"x-api-key": "test-key"})
     assert r.status_code == 200
     assert r.json()["hermes"] == "unreachable"
+
+
+def test_get_health_hermes_no_http(client):
+    mock_response = AsyncMock()
+    mock_response.status_code = 404
+    with patch("app.routes.panel.httpx.AsyncClient") as mock_cls:
+        mock_http = AsyncMock()
+        mock_http.get.return_value = mock_response
+        mock_cls.return_value.__aenter__.return_value = mock_http
+        r = client.get("/panel/health", headers={"x-api-key": "test-key"})
+    assert r.status_code == 200
+    assert r.json()["hermes"] == "no_http"

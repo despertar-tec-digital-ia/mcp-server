@@ -29,10 +29,20 @@ def get_clients():
 @router.get("/health")
 async def get_health():
     results = {"mcp": "ok"}
+    if not HERMES_URL:
+        results["hermes"] = "not_configured"
+        return results
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             r = await client.get(f"{HERMES_URL}/health")
-            results["hermes"] = "ok" if r.status_code == 200 else "error"
+            if r.status_code == 200:
+                results["hermes"] = "ok"
+            elif r.status_code == 404:
+                # Hermes Agent (NousResearch) has no HTTP endpoint — Traefik responds but no backend.
+                # Container may be healthy; enable API server for proper check.
+                results["hermes"] = "no_http"
+            else:
+                results["hermes"] = "error"
     except Exception:
         results["hermes"] = "unreachable"
     return results
