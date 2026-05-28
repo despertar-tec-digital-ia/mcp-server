@@ -11,6 +11,7 @@ from app.clients.sonoras.offers import _deactivate as _sonoras_deactivate
 from app.utils.datetime_parser import parse_natural_datetime
 from app.utils.lock import SlotAlreadyBookedError
 from app.utils.fb_cache import get_image as _get_cached_fb_image
+from app.clients.sonoras.media import list_media as _list_media
 from app.config import VAULT_PATH
 
 os.makedirs("/tmp/ghl_locks", exist_ok=True)
@@ -118,7 +119,7 @@ async def mcp_book_appointment(
     "schedule_notes (horarios o dias en que aplica, ej: 'Lunes a jueves 6pm-10pm', "
     "'Solo fines de semana', 'Consumo minimo $300'; null si no se menciona), "
     "fb_post_id (ID del post para evitar duplicados), "
-    "image_url (usar el valor de fb_image_url recibido en el input; null si vacio). "
+    "image_url (URL de la imagen; si no se proporciona, llamar list_sonoras_media con el titulo del platillo antes de crear; null si no hay imagen relevante o el usuario indica que no quiere imagen). "
     "Antes de crear, verificar con list_sonoras_offers si ya existe una oferta similar activa."
 ))
 def mcp_create_sonoras_offer(
@@ -131,7 +132,7 @@ def mcp_create_sonoras_offer(
 ) -> dict:
     fb_post_id = fb_post_id or None
     if not image_url:
-        image_url = _get_cached_fb_image() or None
+        image_url = _get_cached_fb_image() or ""
     log.info(f"MCP create_sonoras_offer | title: '{title}' | fb_post_id: {fb_post_id} | promo_text: {repr(promo_text)} | image_url: {repr(image_url)}")
     try:
         return _sonoras_create(
@@ -199,3 +200,30 @@ def mcp_read_vault_file(path: str) -> dict:
     except Exception as e:
         log.error(f"Error en MCP read_vault_file: {e}", exc_info=True)
         return {"error": str(e)}
+
+
+@mcp.tool(name="list_sonoras_media", description=(
+    "Busca imagenes en el banco de fotos de Sonora's Carbon y Sal (almacenadas en GHL). "
+    "Usar ANTES de crear una oferta si el usuario no proporciono imagen y el titulo menciona "
+    "un platillo especifico (rib eye, hamburguesa, ensalada, etc.). "
+    "Pasar query con el nombre del platillo en espanol para filtrar. "
+    "Si no hay matches o query es vacio -> devuelve lista vacia -> NO insistir con imagen. "
+    "Flujo de respuesta al usuario: "
+    "1) Si hay matches: mostrar lista con nombre de cada foto y preguntar cual usar. "
+    "2) Si el usuario dice 'ninguna' o 'no pongas imagen' -> crear oferta sin imagen. "
+    "3) Si el usuario dice 'aleatoria' o 'pon cualquiera' -> usar la primera de la lista. "
+    "NUNCA buscar imagen en internet si el usuario no lo pide explicitamente."
+))
+async def mcp_list_sonoras_media(query: str = "") -> dict:
+    log.info(f"MCP list_sonoras_media | query: '{query}'")
+    try:
+        q = query.strip() or None
+        images = await _list_media(query=q)
+        return {
+            "images": images,
+            "count": len(images),
+            "query": query,
+        }
+    except Exception as e:
+        log.error(f"Error en MCP list_sonoras_media: {e}", exc_info=True)
+        return {"images": [], "count": 0, "error": str(e)}

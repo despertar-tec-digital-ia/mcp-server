@@ -14,6 +14,8 @@ services:
       GHL_INBOUND_WEBHOOK_URL:
       GHL_LOCATION_ID:
       MCP_API_KEY:
+      GHL_SONORAS_LOCATION_ID:
+      GHL_SONORAS_MEDIA_API_KEY:
       SLOT_DURATION_MIN:
       TIMEZONE:
     volumes:
