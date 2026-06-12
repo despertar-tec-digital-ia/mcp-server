@@ -16,6 +16,8 @@ MCP server de DDTIA. Expone tools vía MCP (FastMCP) y REST para agentes de GHL 
 | POST | `/tools/book_appointment` | Crear cita (x-api-key) |
 | POST | `/webhooks/facebook` | Webhook de Meta para Sonoras |
 | GET | `/sonoras/offers/list` | Ofertas activas (público) |
+| GET | `/panel/clients` | Lista de clientes (x-api-key) |
+| POST | `/panel/onboarding` | Onboarding nuevo cliente (x-api-key) |
 
 ## Cómo arrancar
 
