@@ -12,6 +12,8 @@ from app.utils.datetime_parser import parse_natural_datetime
 from app.utils.lock import SlotAlreadyBookedError
 from app.utils.fb_cache import get_image as _get_cached_fb_image
 from app.clients.sonoras.media import list_media as _list_media
+from app.clients.auditoria.seo import audit_seo as _audit_seo
+from app.clients.auditoria.health import check_site as _check_site
 from app.config import VAULT_PATH
 
 os.makedirs("/tmp/ghl_locks", exist_ok=True)
@@ -200,6 +202,37 @@ def mcp_read_vault_file(path: str) -> dict:
     except Exception as e:
         log.error(f"Error en MCP read_vault_file: {e}", exc_info=True)
         return {"error": str(e)}
+
+
+@mcp.tool(name="audit_seo", description=(
+    "Audita el SEO on-page de una URL de un sitio de cliente y devuelve un score 0-100 "
+    "con la lista de problemas. Revisa title, meta description, H1, indexabilidad, lang, "
+    "canonical, viewport, Open Graph, datos estructurados (JSON-LD), alt de imagenes, "
+    "HTTPS, robots.txt, sitemap.xml y el certificado TLS. "
+    "Usar cuando el usuario pida auditar, analizar o revisar el SEO de un sitio."
+))
+async def mcp_audit_seo(url: str) -> dict:
+    log.info(f"MCP audit_seo | url: {url}")
+    try:
+        return await _audit_seo(url)
+    except Exception as e:
+        log.error(f"Error en MCP audit_seo: {e}", exc_info=True)
+        return {"url": url, "error": str(e)}
+
+
+@mcp.tool(name="health_check_site", description=(
+    "Verifica si un sitio esta arriba: codigo de estado HTTP, tiempo de respuesta, "
+    "redirecciones y estado del certificado TLS (dias para expirar). "
+    "Usar cuando el usuario pregunte si un sitio esta caido, lento, o por el estado del "
+    "certificado/SSL de un cliente."
+))
+async def mcp_health_check_site(url: str) -> dict:
+    log.info(f"MCP health_check_site | url: {url}")
+    try:
+        return await _check_site(url)
+    except Exception as e:
+        log.error(f"Error en MCP health_check_site: {e}", exc_info=True)
+        return {"url": url, "up": False, "error": str(e)}
 
 
 @mcp.tool(name="list_sonoras_media", description=(
