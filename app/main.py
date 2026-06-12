@@ -17,6 +17,7 @@ from app.routes.tools import router as tools_router
 from app.routes.sonoras import router as sonoras_router
 from app.routes.panel import router as panel_router
 from app.routes.auditoria import router as auditoria_router
+from app.routes.validacion import router as validacion_router
 
 # ─── Logging ────────────────────────────────────────────────────────────────
 LOG_FILE = os.getenv("LOG_FILE", "app.log")
@@ -76,6 +77,7 @@ app.include_router(tools_router)
 app.include_router(sonoras_router)
 app.include_router(panel_router)
 app.include_router(auditoria_router)
+app.include_router(validacion_router)
 
 # ─── MCP Mount ───────────────────────────────────────────────────────────────
 # FastAPI routes above take precedence; this sub-app catches /mcp, /sse, /messages/

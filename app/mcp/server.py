@@ -14,6 +14,7 @@ from app.utils.fb_cache import get_image as _get_cached_fb_image
 from app.clients.sonoras.media import list_media as _list_media
 from app.clients.auditoria.seo import audit_seo as _audit_seo
 from app.clients.auditoria.health import check_site as _check_site
+from app.clients.validacion.agent import validate_niche as _validate_niche
 from app.config import VAULT_PATH
 
 os.makedirs("/tmp/ghl_locks", exist_ok=True)
@@ -233,6 +234,23 @@ async def mcp_health_check_site(url: str) -> dict:
     except Exception as e:
         log.error(f"Error en MCP health_check_site: {e}", exc_info=True)
         return {"url": url, "up": False, "error": str(e)}
+
+
+@mcp.tool(name="validar_nicho", description=(
+    "Valida un nicho o idea de negocio midiendo señales reales de demanda en Hacker News, "
+    "Reddit, YouTube y Google Trends. Devuelve un score 1-10 y una decision (aprobado si >=7). "
+    "Usar cuando el usuario pida validar, evaluar o medir el mercado/demanda de una idea o nicho. "
+    "Opcional: geo (ciudad/region) para acotar. Nota: Reddit/YouTube/Trends solo aportan al "
+    "score si tienen credenciales configuradas; el resultado se re-normaliza sobre las fuentes "
+    "disponibles."
+))
+async def mcp_validar_nicho(niche: str, geo: str = None) -> dict:
+    log.info(f"MCP validar_nicho | niche: '{niche}' | geo: {geo}")
+    try:
+        return await _validate_niche(niche, geo=geo)
+    except Exception as e:
+        log.error(f"Error en MCP validar_nicho: {e}", exc_info=True)
+        return {"error": str(e)}
 
 
 @mcp.tool(name="list_sonoras_media", description=(
